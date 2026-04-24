@@ -1,0 +1,691 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>WILSON PORK CO — MAINTENANCE SYSTEM</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { height: 100%; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; font-size: 14px; background: #f5f4f0; color: #1a1a1a; text-transform: uppercase; letter-spacing: 0.3px; }
+  .app { display: flex; height: 100vh; min-height: 600px; }
+
+  .sidebar { width: 210px; min-width: 210px; background: #ffffff; border-right: 1px solid #e8e6df; display: flex; flex-direction: column; padding: 0; }
+  .sidebar-logo { padding: 18px 16px 16px; border-bottom: 1px solid #e8e6df; }
+  .sidebar-logo .farm-name { font-size: 13px; font-weight: 700; color: #1a1a1a; letter-spacing: 0.5px; }
+  .sidebar-logo .farm-sub { font-size: 10px; color: #999; margin-top: 3px; letter-spacing: 0.5px; }
+  .nav-section { padding: 12px 0 0; flex: 1; }
+  .nav-item { display: flex; align-items: center; gap: 9px; padding: 9px 16px; font-size: 11px; font-weight: 600; letter-spacing: 0.5px; color: #666; cursor: pointer; border-left: 2px solid transparent; transition: all 0.12s; user-select: none; }
+  .nav-item:hover { background: #f5f4f0; color: #1a1a1a; }
+  .nav-item.active { background: #f0faf5; color: #0e7a58; border-left-color: #1D9E75; }
+  .nav-icon { font-size: 14px; width: 18px; text-align: center; }
+
+  .main { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+  .topbar { background: #ffffff; border-bottom: 1px solid #e8e6df; padding: 14px 24px; display: flex; align-items: center; justify-content: space-between; flex-shrink: 0; }
+  .topbar-title { font-size: 14px; font-weight: 700; color: #1a1a1a; letter-spacing: 0.8px; }
+  .topbar-date { font-size: 11px; color: #aaa; letter-spacing: 0.3px; }
+  .content { padding: 20px 24px; flex: 1; overflow-y: auto; }
+
+  .view { display: none; }
+  .view.active { display: block; }
+
+  .stat-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 20px; }
+  .stat-card { background: #f0f0eb; border-radius: 10px; padding: 14px 16px; }
+  .stat-label { font-size: 10px; color: #888; margin-bottom: 6px; font-weight: 700; letter-spacing: 0.8px; }
+  .stat-value { font-size: 26px; font-weight: 700; color: #1a1a1a; line-height: 1; letter-spacing: -0.5px; text-transform: none; }
+  .stat-sub { font-size: 10px; color: #aaa; margin-top: 3px; letter-spacing: 0.3px; }
+
+  .card { background: #ffffff; border: 1px solid #e8e6df; border-radius: 12px; padding: 16px; margin-bottom: 16px; }
+  .section-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; }
+  .section-title { font-size: 11px; font-weight: 700; color: #1a1a1a; letter-spacing: 0.8px; }
+
+  .btn { padding: 7px 14px; font-size: 11px; font-weight: 700; letter-spacing: 0.5px; border: 1px solid #d0cec7; border-radius: 8px; background: #ffffff; color: #1a1a1a; cursor: pointer; font-family: inherit; text-transform: uppercase; transition: all 0.12s; }
+  .btn:hover { background: #f5f4f0; }
+  .btn-primary { background: #1D9E75; color: #fff; border-color: #1D9E75; }
+  .btn-primary:hover { background: #0F6E56; border-color: #0F6E56; }
+  .btn-sm { padding: 4px 10px; font-size: 10px; }
+  .btn-edit { background: #e8f2fc; color: #1a5fa5; border-color: #b5d4f4; }
+  .btn-edit:hover { background: #d0e8f8; }
+  .btn-danger { background: #fff0f0; color: #a32d2d; border-color: #f7c1c1; }
+  .btn-danger:hover { background: #fcebeb; }
+
+  .table-wrap { overflow-x: auto; }
+  table { width: 100%; border-collapse: collapse; font-size: 11px; }
+  th { text-align: left; padding: 9px 10px; font-weight: 700; font-size: 10px; color: #888; border-bottom: 1px solid #e8e6df; background: #fafaf8; letter-spacing: 0.6px; white-space: nowrap; }
+  td { padding: 10px 10px; border-bottom: 1px solid #f0eeea; color: #1a1a1a; vertical-align: middle; font-size: 11px; letter-spacing: 0.2px; }
+  tr:last-child td { border-bottom: none; }
+  tbody tr:hover td { background: #fafaf8; }
+
+  .badge { display: inline-block; padding: 2px 8px; border-radius: 20px; font-size: 9px; font-weight: 700; white-space: nowrap; letter-spacing: 0.4px; }
+  .badge-green { background: #e6f5ed; color: #1a6b3f; }
+  .badge-amber { background: #fff3e0; color: #8a5200; }
+  .badge-red { background: #fdeaea; color: #9b2020; }
+  .badge-blue { background: #e8f2fc; color: #1a5fa5; }
+  .badge-gray { background: #f0efeb; color: #666; }
+  .badge-teal { background: #e1f5ee; color: #0f6e56; }
+
+  .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.35); z-index: 100; align-items: center; justify-content: center; backdrop-filter: blur(2px); }
+  .modal-overlay.open { display: flex; }
+  .modal { background: #ffffff; border-radius: 14px; border: 1px solid #e8e6df; padding: 22px; width: 500px; max-width: 95vw; max-height: 88vh; overflow-y: auto; box-shadow: 0 8px 32px rgba(0,0,0,0.12); }
+  .modal-title { font-size: 13px; font-weight: 700; letter-spacing: 0.8px; margin-bottom: 18px; color: #1a1a1a; }
+  .form-row { margin-bottom: 13px; }
+  .form-label { font-size: 10px; color: #666; margin-bottom: 4px; display: block; font-weight: 700; letter-spacing: 0.5px; }
+  input[type="text"], input[type="number"], input[type="date"], select, textarea {
+    width: 100%; padding: 8px 10px; font-size: 12px; border: 1px solid #d8d6cf;
+    border-radius: 8px; background: #fafaf8; color: #1a1a1a; font-family: inherit;
+    text-transform: uppercase; letter-spacing: 0.3px; transition: border-color 0.12s; outline: none;
+  }
+  input:focus, select:focus, textarea:focus { border-color: #1D9E75; background: #fff; box-shadow: 0 0 0 3px rgba(29,158,117,0.1); }
+  input[type="date"] { text-transform: none; }
+  textarea { resize: vertical; min-height: 72px; }
+  .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .modal-footer { display: flex; gap: 8px; justify-content: flex-end; margin-top: 18px; padding-top: 14px; border-top: 1px solid #e8e6df; }
+
+  .fault-item { border-left: 3px solid #e24b4a; padding: 11px 14px; margin-bottom: 10px; background: #fafaf8; border-radius: 0 10px 10px 0; border-top: 1px solid #f0eeea; border-right: 1px solid #f0eeea; border-bottom: 1px solid #f0eeea; }
+  .fault-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 8px; }
+  .fault-asset { font-size: 12px; font-weight: 700; color: #1a1a1a; letter-spacing: 0.4px; }
+  .fault-desc { font-size: 11px; color: #555; margin-top: 4px; line-height: 1.5; }
+  .fault-meta { font-size: 10px; color: #aaa; margin-top: 5px; letter-spacing: 0.3px; }
+
+  .tab-row { display: flex; gap: 0; margin-bottom: 16px; border-bottom: 1px solid #e8e6df; }
+  .tab { padding: 9px 16px; font-size: 11px; font-weight: 700; letter-spacing: 0.5px; cursor: pointer; color: #888; border-bottom: 2px solid transparent; margin-bottom: -1px; user-select: none; transition: all 0.12s; }
+  .tab:hover { color: #1a1a1a; }
+  .tab.active { color: #1D9E75; border-bottom-color: #1D9E75; }
+
+  .checklist-item { display: flex; align-items: flex-start; gap: 10px; padding: 9px 0; border-bottom: 1px solid #f0eeea; }
+  .checklist-item:last-child { border-bottom: none; }
+  .checklist-check { width: 17px; height: 17px; min-width: 17px; border: 1.5px solid #ccc; border-radius: 4px; cursor: pointer; display: flex; align-items: center; justify-content: center; margin-top: 1px; transition: all 0.12s; font-size: 10px; background: #fff; text-transform: none; }
+  .checklist-check:hover { border-color: #1D9E75; }
+  .checklist-check.checked { background: #1D9E75; border-color: #1D9E75; color: #fff; }
+  .checklist-text { font-size: 11px; color: #1a1a1a; line-height: 1.5; letter-spacing: 0.3px; }
+  .checklist-asset { font-size: 10px; color: #aaa; margin-top: 2px; letter-spacing: 0.3px; }
+
+  .empty-state { text-align: center; padding: 40px 20px; color: #aaa; font-size: 11px; line-height: 1.8; letter-spacing: 0.3px; }
+  .empty-state strong { color: #666; }
+
+  .progress-bar { height: 5px; background: #f0eeea; border-radius: 3px; overflow: hidden; margin-top: 4px; }
+  .progress-fill { height: 100%; border-radius: 3px; }
+
+  ::-webkit-scrollbar { width: 6px; height: 6px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: #d0cec7; border-radius: 3px; }
+  ::-webkit-scrollbar-thumb:hover { background: #b0aea7; }
+
+  .dash-fault-row { display: flex; align-items: center; justify-content: space-between; padding: 9px 0; border-bottom: 1px solid #f0eeea; }
+  .dash-fault-row:last-child { border-bottom: none; }
+
+  .delete-btn { background: none; border: none; cursor: pointer; color: #ccc; font-size: 13px; padding: 2px 5px; border-radius: 4px; transition: all 0.12s; text-transform: none; }
+  .delete-btn:hover { color: #e24b4a; background: #fdeaea; }
+  .action-btns { display: flex; gap: 4px; align-items: center; }
+
+  @media (max-width: 900px) {
+    .stat-grid { grid-template-columns: repeat(2, 1fr); }
+    .sidebar { width: 52px; min-width: 52px; }
+    .sidebar-logo .farm-name, .sidebar-logo .farm-sub, .nav-item span:last-child { display: none; }
+    .nav-item { justify-content: center; padding: 10px; }
+    .nav-icon { width: auto; }
+  }
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="sidebar">
+    <div class="sidebar-logo">
+      <div class="farm-name">Wilson Pork Co</div>
+      <div class="farm-sub">Maintenance System</div>
+    </div>
+    <div class="nav-section">
+      <div class="nav-item active" onclick="showView('dashboard',this)"><span class="nav-icon">⊞</span><span>Dashboard</span></div>
+      <div class="nav-item" onclick="showView('assets',this)"><span class="nav-icon">◧</span><span>Assets</span></div>
+      <div class="nav-item" onclick="showView('service',this)"><span class="nav-icon">✦</span><span>Service Log</span></div>
+      <div class="nav-item" onclick="showView('faults',this)"><span class="nav-icon">⚠</span><span>Faults</span></div>
+      <div class="nav-item" onclick="showView('checklists',this)"><span class="nav-icon">☑</span><span>Checklists</span></div>
+    </div>
+  </div>
+  <div class="main">
+    <div class="topbar">
+      <div class="topbar-title" id="view-title">Dashboard</div>
+      <div class="topbar-date" id="topbar-date"></div>
+    </div>
+    <div class="content">
+
+      <div class="view active" id="view-dashboard">
+        <div class="stat-grid">
+          <div class="stat-card"><div class="stat-label">Total Assets</div><div class="stat-value" id="stat-assets">0</div><div class="stat-sub">Registered</div></div>
+          <div class="stat-card"><div class="stat-label">Due This Week</div><div class="stat-value" id="stat-due-week" style="color:#8a5200;">0</div><div class="stat-sub">Service Items</div></div>
+          <div class="stat-card"><div class="stat-label">Open Faults</div><div class="stat-value" id="stat-faults" style="color:#9b2020;">0</div><div class="stat-sub">Unresolved</div></div>
+          <div class="stat-card"><div class="stat-label">Overdue</div><div class="stat-value" id="stat-overdue" style="color:#9b2020;">0</div><div class="stat-sub">Maintenance Items</div></div>
+        </div>
+        <div class="card">
+          <div class="section-header"><div class="section-title">Upcoming Maintenance Schedule</div></div>
+          <div id="dash-schedule-list"><div class="empty-state">No assets registered yet.<br>Add assets to see your maintenance schedule.</div></div>
+        </div>
+        <div class="card">
+          <div class="section-header"><div class="section-title">Open Faults</div></div>
+          <div id="dash-faults-list"><div class="empty-state">No open faults.</div></div>
+        </div>
+      </div>
+
+      <div class="view" id="view-assets">
+        <div class="section-header">
+          <div class="section-title">Asset Register</div>
+          <button class="btn btn-primary" onclick="openAddAsset()">+ Add Asset</button>
+        </div>
+        <div class="card" style="padding:0;overflow:hidden;">
+          <div class="table-wrap" id="asset-table-wrap">
+            <div class="empty-state">No assets registered.<br>Click <strong>+ Add Asset</strong> to get started.</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="view" id="view-service">
+        <div class="section-header">
+          <div class="section-title">Service Log</div>
+          <button class="btn btn-primary" onclick="openModal('modal-service')">+ Log Service</button>
+        </div>
+        <div class="card" style="padding:0;overflow:hidden;">
+          <div class="table-wrap" id="service-table-wrap">
+            <div class="empty-state">No service records.<br>Click <strong>+ Log Service</strong> to add one.</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="view" id="view-faults">
+        <div class="section-header">
+          <div class="section-title">Fault Log</div>
+          <button class="btn btn-primary" onclick="openModal('modal-fault')">+ Log Fault</button>
+        </div>
+        <div id="fault-list-wrap">
+          <div class="empty-state">No faults logged.<br>Click <strong>+ Log Fault</strong> to report an issue.</div>
+        </div>
+      </div>
+
+      <div class="view" id="view-checklists">
+        <div class="tab-row">
+          <div class="tab active" onclick="showTab('daily',this)">Daily</div>
+          <div class="tab" onclick="showTab('weekly',this)">Weekly</div>
+          <div class="tab" onclick="showTab('monthly',this)">Monthly</div>
+        </div>
+        <div id="checklist-content"><div class="empty-state">Add assets to generate checklists.</div></div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<!-- ASSET MODAL (Add + Edit) -->
+<div class="modal-overlay" id="modal-asset" onclick="overlayClose(event,'modal-asset')">
+  <div class="modal">
+    <div class="modal-title" id="asset-modal-title">Add Asset</div>
+    <div class="form-row">
+      <label class="form-label">Asset Name *</label>
+      <input type="text" id="a-id" placeholder="e.g. TRACTOR 01 / JOHN DEERE 6130R">
+    </div>
+    <div class="form-row">
+      <label class="form-label">Category *</label>
+      <select id="a-cat">
+        <option value="">Select...</option>
+        <option>Tractor</option>
+        <option>Header / Harvester</option>
+        <option>Spray Equipment</option>
+        <option>Feed Equipment</option>
+        <option>Water Pump</option>
+        <option>Vehicle / Ute</option>
+        <option>Generator</option>
+        <option>Trailer</option>
+        <option>Other</option>
+      </select>
+    </div>
+    <div class="form-grid">
+      <div class="form-row"><label class="form-label">Year</label><input type="text" id="a-year" placeholder="e.g. 2019"></div>
+      <div class="form-row"><label class="form-label">Make / Model</label><input type="text" id="a-model" placeholder="e.g. John Deere 6130R"></div>
+    </div>
+    <div class="form-grid">
+      <div class="form-row"><label class="form-label">Current Hours</label><input type="number" id="a-hours" placeholder="e.g. 2340"></div>
+      <div class="form-row"><label class="form-label">Odometer (km)</label><input type="number" id="a-odo" placeholder="If vehicle"></div>
+    </div>
+    <div class="form-grid">
+      <div class="form-row"><label class="form-label">Last Service Date</label><input type="date" id="a-last-date"></div>
+      <div class="form-row"><label class="form-label">Last Service Type</label><input type="text" id="a-last-type" placeholder="e.g. 500hr service"></div>
+    </div>
+    <div class="form-grid">
+      <div class="form-row"><label class="form-label">Next Service (hours)</label><input type="number" id="a-next-hrs" placeholder="e.g. 2500"></div>
+      <div class="form-row"><label class="form-label">Next Service (date)</label><input type="date" id="a-next-date"></div>
+    </div>
+    <div class="form-row">
+      <label class="form-label">Status</label>
+      <select id="a-status">
+        <option value="Operational">Operational</option>
+        <option value="Needs Attention">Needs Attention</option>
+        <option value="Down">Down</option>
+        <option value="Retired">Retired</option>
+      </select>
+    </div>
+    <div class="form-row"><label class="form-label">Notes</label><textarea id="a-notes" placeholder="Any known issues or additional info..."></textarea></div>
+    <div class="modal-footer">
+      <button class="btn" onclick="closeModal('modal-asset')">Cancel</button>
+      <button class="btn btn-primary" id="asset-save-btn" onclick="saveAsset()">Save Asset</button>
+    </div>
+  </div>
+</div>
+
+<!-- SERVICE MODAL -->
+<div class="modal-overlay" id="modal-service" onclick="overlayClose(event,'modal-service')">
+  <div class="modal">
+    <div class="modal-title">Log Service</div>
+    <div class="form-row"><label class="form-label">Asset *</label><select id="s-asset"></select></div>
+    <div class="form-grid">
+      <div class="form-row"><label class="form-label">Service Date *</label><input type="date" id="s-date"></div>
+      <div class="form-row">
+        <label class="form-label">Service Type *</label>
+        <select id="s-type">
+          <option>250hr Service</option><option>500hr Service</option><option>1000hr Service</option>
+          <option>Annual Service</option><option>Repair</option><option>Inspection</option>
+          <option>Oil Change</option><option>Filter Replacement</option><option>Other</option>
+        </select>
+      </div>
+    </div>
+    <div class="form-grid">
+      <div class="form-row"><label class="form-label">Hours at Service</label><input type="number" id="s-hours" placeholder="e.g. 2500"></div>
+      <div class="form-row"><label class="form-label">Cost ($)</label><input type="number" id="s-cost" placeholder="e.g. 450"></div>
+    </div>
+    <div class="form-row"><label class="form-label">Performed By</label><input type="text" id="s-by" placeholder="e.g. In-house / Dealer / Contractor"></div>
+    <div class="form-grid">
+      <div class="form-row"><label class="form-label">Next Service Due (hours)</label><input type="number" id="s-next-hrs" placeholder="e.g. 3000"></div>
+      <div class="form-row"><label class="form-label">Next Service Due (date)</label><input type="date" id="s-next-date"></div>
+    </div>
+    <div class="form-row"><label class="form-label">Work Performed / Notes</label><textarea id="s-notes" placeholder="Describe work completed, parts replaced, observations..."></textarea></div>
+    <div class="modal-footer">
+      <button class="btn" onclick="closeModal('modal-service')">Cancel</button>
+      <button class="btn btn-primary" onclick="saveService()">Save Record</button>
+    </div>
+  </div>
+</div>
+
+<!-- FAULT MODAL -->
+<div class="modal-overlay" id="modal-fault" onclick="overlayClose(event,'modal-fault')">
+  <div class="modal">
+    <div class="modal-title">Log Fault</div>
+    <div class="form-row"><label class="form-label">Asset *</label><select id="f-asset"></select></div>
+    <div class="form-grid">
+      <div class="form-row"><label class="form-label">Date Reported *</label><input type="date" id="f-date"></div>
+      <div class="form-row">
+        <label class="form-label">Priority</label>
+        <select id="f-priority">
+          <option value="Critical">Critical — Asset Down</option>
+          <option value="High">High — Degraded Operation</option>
+          <option value="Medium">Medium — Monitor</option>
+          <option value="Low">Low — Minor</option>
+        </select>
+      </div>
+    </div>
+    <div class="form-row"><label class="form-label">Fault Description *</label><textarea id="f-desc" placeholder="Describe the fault, symptoms, or issue observed..."></textarea></div>
+    <div class="form-row"><label class="form-label">Reported By</label><input type="text" id="f-by" placeholder="e.g. John Smith"></div>
+    <div class="form-row">
+      <label class="form-label">Status</label>
+      <select id="f-status">
+        <option value="Open">Open</option><option value="In Progress">In Progress</option><option value="Resolved">Resolved</option>
+      </select>
+    </div>
+    <div class="form-row"><label class="form-label">Action Taken</label><textarea id="f-action" placeholder="Any immediate action taken..."></textarea></div>
+    <div class="modal-footer">
+      <button class="btn" onclick="closeModal('modal-fault')">Cancel</button>
+      <button class="btn btn-primary" onclick="saveFault()">Log Fault</button>
+    </div>
+  </div>
+</div>
+
+<script>
+  let assets=[], services=[], faults=[], checkStates={};
+  let currentCheckPeriod='daily', editingAssetId=null;
+
+  const today=new Date();
+  document.getElementById('topbar-date').textContent=today.toLocaleDateString('en-AU',{weekday:'long',day:'numeric',month:'long',year:'numeric'}).toUpperCase();
+
+  function showView(v,el){
+    document.querySelectorAll('.view').forEach(x=>x.classList.remove('active'));
+    document.querySelectorAll('.nav-item').forEach(x=>x.classList.remove('active'));
+    document.getElementById('view-'+v).classList.add('active');
+    const t={dashboard:'Dashboard',assets:'Asset Register',service:'Service Log',faults:'Fault Log',checklists:'Checklists'};
+    document.getElementById('view-title').textContent=t[v];
+    if(el)el.classList.add('active');
+    if(v==='checklists')renderChecklist(currentCheckPeriod);
+  }
+
+  function openModal(id){
+    if(id==='modal-service'||id==='modal-fault')populateAssetSelects();
+    const d=today.toISOString().split('T')[0];
+    if(id==='modal-service'){const e=document.getElementById('s-date');if(e)e.value=d;}
+    if(id==='modal-fault'){const e=document.getElementById('f-date');if(e)e.value=d;}
+    document.getElementById(id).classList.add('open');
+  }
+  function closeModal(id){document.getElementById(id).classList.remove('open');}
+  function overlayClose(e,id){if(e.target===e.currentTarget)closeModal(id);}
+
+  function populateAssetSelects(){
+    ['s-asset','f-asset'].forEach(id=>{
+      const sel=document.getElementById(id);if(!sel)return;
+      sel.innerHTML=assets.length?assets.map(a=>`<option value="${a.id}">${a.id}</option>`).join(''):'<option value="">No assets registered</option>';
+    });
+  }
+
+  function openAddAsset(){
+    editingAssetId=null;
+    document.getElementById('asset-modal-title').textContent='Add Asset';
+    document.getElementById('asset-save-btn').textContent='Save Asset';
+    ['a-id','a-year','a-model','a-hours','a-odo','a-last-date','a-last-type','a-next-hrs','a-next-date','a-notes'].forEach(x=>{const e=document.getElementById(x);if(e)e.value='';});
+    document.getElementById('a-cat').value='';
+    document.getElementById('a-status').value='Operational';
+    document.getElementById('a-id').readOnly=false;
+    document.getElementById('a-id').style.background='';
+    document.getElementById('modal-asset').classList.add('open');
+  }
+
+  function openEditAsset(id){
+    const a=assets.find(x=>x.id===id);if(!a)return;
+    editingAssetId=id;
+    document.getElementById('asset-modal-title').textContent='Edit Asset';
+    document.getElementById('asset-save-btn').textContent='Update Asset';
+    document.getElementById('a-id').value=a.id;
+    document.getElementById('a-id').readOnly=true;
+    document.getElementById('a-id').style.background='#f0f0eb';
+    document.getElementById('a-cat').value=a.cat;
+    document.getElementById('a-year').value=a.year||'';
+    document.getElementById('a-model').value=a.model||'';
+    document.getElementById('a-hours').value=a.hours!=='—'?a.hours:'';
+    document.getElementById('a-odo').value=a.odo!=='—'?a.odo:'';
+    document.getElementById('a-last-date').value=a.lastDate!=='—'?a.lastDate:'';
+    document.getElementById('a-last-type').value=a.lastType!=='—'?a.lastType:'';
+    document.getElementById('a-next-hrs').value=a.nextHrs!=='—'?a.nextHrs:'';
+    document.getElementById('a-next-date').value=a.nextDate!=='—'?a.nextDate:'';
+    document.getElementById('a-status').value=a.status;
+    document.getElementById('a-notes').value=a.notes||'';
+    document.getElementById('modal-asset').classList.add('open');
+  }
+
+  function saveAsset(){
+    const id=document.getElementById('a-id').value.trim().toUpperCase();
+    const cat=document.getElementById('a-cat').value;
+    if(!id||!cat){alert('Please fill in Asset Name and Category.');return;}
+    const data={
+      id,cat,
+      year:document.getElementById('a-year').value,
+      model:document.getElementById('a-model').value,
+      hours:document.getElementById('a-hours').value||'—',
+      odo:document.getElementById('a-odo').value||'—',
+      lastDate:document.getElementById('a-last-date').value||'—',
+      lastType:document.getElementById('a-last-type').value||'—',
+      nextHrs:document.getElementById('a-next-hrs').value||'—',
+      nextDate:document.getElementById('a-next-date').value||'—',
+      status:document.getElementById('a-status').value,
+      notes:document.getElementById('a-notes').value
+    };
+    if(editingAssetId){
+      const idx=assets.findIndex(a=>a.id===editingAssetId);
+      if(idx>-1)assets[idx]=data;
+    } else {
+      if(assets.find(a=>a.id===id)){alert('Asset name already exists. Please use a unique name.');return;}
+      assets.push(data);
+    }
+    closeModal('modal-asset');
+    editingAssetId=null;
+    renderAll();
+  }
+
+  function saveService(){
+    const asset=document.getElementById('s-asset').value;
+    const date=document.getElementById('s-date').value;
+    const type=document.getElementById('s-type').value;
+    if(!asset||!date){alert('Please fill in Asset and Date.');return;}
+    const rec={asset,date,type,
+      hours:document.getElementById('s-hours').value||'—',
+      cost:document.getElementById('s-cost').value||'',
+      by:document.getElementById('s-by').value||'—',
+      nextHrs:document.getElementById('s-next-hrs').value,
+      nextDate:document.getElementById('s-next-date').value,
+      notes:document.getElementById('s-notes').value
+    };
+    services.push(rec);
+    const a=assets.find(x=>x.id===asset);
+    if(a){a.lastDate=date;a.lastType=type;if(rec.nextHrs)a.nextHrs=rec.nextHrs;if(rec.nextDate)a.nextDate=rec.nextDate;}
+    ['s-hours','s-cost','s-by','s-next-hrs','s-next-date','s-notes'].forEach(x=>{const e=document.getElementById(x);if(e)e.value='';});
+    closeModal('modal-service');renderAll();
+  }
+
+  function saveFault(){
+    const asset=document.getElementById('f-asset').value;
+    const date=document.getElementById('f-date').value;
+    const desc=document.getElementById('f-desc').value.trim();
+    if(!asset||!date||!desc){alert('Please fill in Asset, Date, and Description.');return;}
+    faults.push({id:Date.now(),asset,date,desc,
+      priority:document.getElementById('f-priority').value,
+      by:document.getElementById('f-by').value||'—',
+      status:document.getElementById('f-status').value,
+      action:document.getElementById('f-action').value
+    });
+    const a=assets.find(x=>x.id===asset);
+    if(a&&['Critical','High'].includes(document.getElementById('f-priority').value))a.status='Needs Attention';
+    ['f-desc','f-by','f-action'].forEach(x=>{const e=document.getElementById(x);if(e)e.value='';});
+    closeModal('modal-fault');renderAll();
+  }
+
+  function deleteAsset(id){
+    if(!confirm('Remove asset '+id+'? This cannot be undone.'))return;
+    assets=assets.filter(a=>a.id!==id);renderAll();
+  }
+  function deleteFault(id){
+    if(!confirm('Remove this fault record?'))return;
+    faults=faults.filter(f=>f.id!==id);renderAll();
+  }
+
+  function renderAll(){
+    renderAssetTable();renderServiceTable();renderFaultList();renderDashboard();
+    if(document.getElementById('view-checklists').classList.contains('active'))renderChecklist(currentCheckPeriod);
+  }
+
+  function statusBadge(s){const m={'Operational':'badge-green','Needs Attention':'badge-amber','Down':'badge-red','Retired':'badge-gray'};return`<span class="badge ${m[s]||'badge-gray'}">${s}</span>`;}
+  function priorityBadge(p){const m={'Critical':'badge-red','High':'badge-amber','Medium':'badge-blue','Low':'badge-gray'};return`<span class="badge ${m[p]||'badge-gray'}">${p}</span>`;}
+  function faultBadge(s){const m={'Open':'badge-red','In Progress':'badge-amber','Resolved':'badge-green'};return`<span class="badge ${m[s]||'badge-gray'}">${s}</span>`;}
+
+  function renderAssetTable(){
+    const wrap=document.getElementById('asset-table-wrap');
+    if(!assets.length){wrap.innerHTML='<div class="empty-state">No assets registered.<br>Click <strong>+ Add Asset</strong> to get started.</div>';return;}
+    wrap.innerHTML=`<table><thead><tr>
+      <th>Asset Name</th><th>Category</th><th>Year / Model</th><th>Hours</th><th>Odo (km)</th>
+      <th>Last Service</th><th>Next (hrs)</th><th>Next (date)</th><th>Status</th><th>Notes</th><th>Actions</th>
+    </tr></thead><tbody>${assets.map(a=>`<tr>
+      <td style="font-weight:700;">${a.id}</td>
+      <td><span class="badge badge-teal">${a.cat}</span></td>
+      <td>${a.year?a.year+(a.model?' / '+a.model:''):(a.model||'—')}</td>
+      <td>${a.hours}</td><td>${a.odo}</td>
+      <td>${a.lastDate!=='—'?a.lastDate:'—'}${a.lastType&&a.lastType!=='—'?`<br><span style="font-size:10px;color:#aaa;">${a.lastType}</span>`:''}</td>
+      <td>${a.nextHrs}</td>
+      <td>${a.nextDate!=='—'?a.nextDate:'—'}</td>
+      <td>${statusBadge(a.status)}</td>
+      <td style="color:#999;font-size:10px;max-width:100px;">${a.notes?a.notes.slice(0,50)+(a.notes.length>50?'...':''):'—'}</td>
+      <td><div class="action-btns">
+        <button class="btn btn-edit btn-sm" onclick="openEditAsset('${a.id.replace(/'/g,"\\'")}')">Edit</button>
+        <button class="delete-btn" onclick="deleteAsset('${a.id.replace(/'/g,"\\'")}')">✕</button>
+      </div></td>
+    </tr>`).join('')}</tbody></table>`;
+  }
+
+  function renderServiceTable(){
+    const wrap=document.getElementById('service-table-wrap');
+    if(!services.length){wrap.innerHTML='<div class="empty-state">No service records.<br>Click <strong>+ Log Service</strong> to add one.</div>';return;}
+    const sorted=[...services].sort((a,b)=>b.date.localeCompare(a.date));
+    wrap.innerHTML=`<table><thead><tr>
+      <th>Date</th><th>Asset</th><th>Service Type</th><th>Hours</th><th>Cost</th>
+      <th>Performed By</th><th>Next Due (hrs)</th><th>Next Due (date)</th><th>Notes</th>
+    </tr></thead><tbody>${sorted.map(s=>`<tr>
+      <td style="white-space:nowrap;">${s.date}</td>
+      <td style="font-weight:700;">${s.asset}</td>
+      <td><span class="badge badge-blue">${s.type}</span></td>
+      <td>${s.hours}</td>
+      <td>${s.cost?'$'+Number(s.cost).toLocaleString():'—'}</td>
+      <td>${s.by}</td><td>${s.nextHrs||'—'}</td><td>${s.nextDate||'—'}</td>
+      <td style="color:#888;font-size:10px;max-width:140px;">${s.notes||'—'}</td>
+    </tr>`).join('')}</tbody></table>`;
+  }
+
+  function renderFaultList(){
+    const wrap=document.getElementById('fault-list-wrap');
+    if(!faults.length){wrap.innerHTML='<div class="empty-state">No faults logged.<br>Click <strong>+ Log Fault</strong> to report an issue.</div>';return;}
+    const sorted=[...faults].sort((a,b)=>b.date.localeCompare(a.date));
+    const pc={Critical:'#e24b4a',High:'#e09000',Medium:'#378add',Low:'#b0aea7'};
+    wrap.innerHTML=sorted.map(f=>`
+      <div class="fault-item" style="border-left-color:${pc[f.priority]||'#ccc'}">
+        <div class="fault-header">
+          <span class="fault-asset">${f.asset}</span>
+          <div style="display:flex;gap:6px;align-items:center;">${priorityBadge(f.priority)} ${faultBadge(f.status)}
+            <button class="delete-btn" onclick="deleteFault(${f.id})">✕</button>
+          </div>
+        </div>
+        <div class="fault-desc">${f.desc}</div>
+        ${f.action?`<div class="fault-meta" style="color:#555;">Action: ${f.action}</div>`:''}
+        <div class="fault-meta">Reported: ${f.date}${f.by!=='—'?' · By: '+f.by:''}</div>
+      </div>`).join('');
+  }
+
+  function renderDashboard(){
+    document.getElementById('stat-assets').textContent=assets.length;
+    const openFaults=faults.filter(f=>f.status!=='Resolved').length;
+    document.getElementById('stat-faults').textContent=openFaults;
+    const now=new Date();now.setHours(0,0,0,0);
+    const weekEnd=new Date(now);weekEnd.setDate(now.getDate()+7);
+    let dueWeek=0,overdue=0;
+    assets.forEach(a=>{
+      if(a.nextDate&&a.nextDate!=='—'){const nd=new Date(a.nextDate);if(nd<now)overdue++;else if(nd<=weekEnd)dueWeek++;}
+    });
+    document.getElementById('stat-due-week').textContent=dueWeek;
+    document.getElementById('stat-overdue').textContent=overdue;
+
+    const schedList=document.getElementById('dash-schedule-list');
+    const withDates=assets.filter(a=>a.nextDate&&a.nextDate!=='—').sort((a,b)=>a.nextDate.localeCompare(b.nextDate));
+    if(!withDates.length){
+      schedList.innerHTML='<div class="empty-state">No upcoming service dates set.<br>Add next service dates when registering assets.</div>';
+    } else {
+      schedList.innerHTML=`<table><thead><tr>
+        <th>Asset</th><th>Category</th><th>Next Service Date</th><th>Next (hrs)</th><th>Status</th><th>Days Away</th>
+      </tr></thead><tbody>${withDates.map(a=>{
+        const nd=new Date(a.nextDate);nd.setHours(0,0,0,0);
+        const diff=Math.round((nd-now)/86400000);
+        const urg=diff<0?'badge-red':diff<=7?'badge-amber':'badge-green';
+        const lbl=diff<0?`${Math.abs(diff)}D Overdue`:diff===0?'Today':`${diff}D`;
+        return`<tr>
+          <td style="font-weight:700;">${a.id}</td>
+          <td><span class="badge badge-teal">${a.cat}</span></td>
+          <td>${a.nextDate}</td><td>${a.nextHrs}</td>
+          <td>${statusBadge(a.status)}</td>
+          <td><span class="badge ${urg}">${lbl}</span></td>
+        </tr>`;
+      }).join('')}</tbody></table>`;
+    }
+
+    const faultsList=document.getElementById('dash-faults-list');
+    const openList=faults.filter(f=>f.status!=='Resolved');
+    if(!openList.length){
+      faultsList.innerHTML='<div class="empty-state">No open faults. All clear.</div>';
+    } else {
+      faultsList.innerHTML=openList.map(f=>`
+        <div class="dash-fault-row">
+          <div>
+            <span style="font-size:12px;font-weight:700;">${f.asset}</span>
+            <span style="font-size:11px;color:#666;margin-left:8px;">${f.desc.length>70?f.desc.slice(0,70)+'...':f.desc}</span>
+          </div>
+          <div style="display:flex;gap:6px;flex-shrink:0;">${priorityBadge(f.priority)} ${faultBadge(f.status)}</div>
+        </div>`).join('');
+    }
+  }
+
+  function showTab(tab,el){
+    currentCheckPeriod=tab;
+    document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
+    if(el)el.classList.add('active');
+    renderChecklist(tab);
+  }
+
+  const checklistTasks={
+    daily:[
+      {task:'Check engine oil level',cats:['Tractor','Header / Harvester','Generator']},
+      {task:'Check coolant level',cats:['Tractor','Header / Harvester','Generator']},
+      {task:'Inspect for fuel or fluid leaks',cats:['Tractor','Header / Harvester','Spray Equipment','Generator']},
+      {task:'Check tyre pressures',cats:['Tractor','Vehicle / Ute','Trailer']},
+      {task:'Test all lights and indicators',cats:['Tractor','Vehicle / Ute']},
+      {task:'Check water pump operation and flow',cats:['Water Pump']},
+      {task:'Inspect belts and hoses for wear or cracking',cats:['Feed Equipment','Header / Harvester']},
+      {task:'Check feed auger for blockages or damage',cats:['Feed Equipment']},
+      {task:'Inspect spray nozzles and check pressure',cats:['Spray Equipment']},
+      {task:'Visual walk-around — check for damage or leaks',cats:['Tractor','Header / Harvester','Vehicle / Ute']},
+    ],
+    weekly:[
+      {task:'Grease all fittings and pivot points',cats:['Tractor','Header / Harvester','Feed Equipment']},
+      {task:'Check battery terminals and charge level',cats:['Tractor','Vehicle / Ute','Generator']},
+      {task:'Inspect air filter — clean or replace if needed',cats:['Tractor','Generator','Header / Harvester']},
+      {task:'Check hydraulic fluid level',cats:['Tractor','Header / Harvester']},
+      {task:'Inspect trailer coupling, chains, and lights',cats:['Trailer']},
+      {task:'Test water pump pressure and measure flow rates',cats:['Water Pump']},
+      {task:'Flush spray lines and inspect inline filters',cats:['Spray Equipment']},
+      {task:'Check and clean feed auger bearings',cats:['Feed Equipment']},
+      {task:'Inspect vehicle brakes and check brake fluid',cats:['Vehicle / Ute']},
+      {task:'Check fuel tank levels and fill if needed',cats:['Generator','Tractor']},
+    ],
+    monthly:[
+      {task:'Engine oil and filter change (if interval due)',cats:['Tractor','Generator','Header / Harvester']},
+      {task:'Inspect and clean or replace fuel filter',cats:['Tractor','Generator','Header / Harvester']},
+      {task:'Check and adjust drive belt tension',cats:['Header / Harvester','Feed Equipment']},
+      {task:'Inspect radiator and clean fins',cats:['Tractor','Generator']},
+      {task:'Full fluid check — hydraulic, transmission, brake, coolant',cats:['Tractor','Header / Harvester']},
+      {task:'Inspect wiring harnesses for chafing or damage',cats:['Tractor','Header / Harvester','Spray Equipment']},
+      {task:'Calibrate spray equipment, check tanks and seals',cats:['Spray Equipment']},
+      {task:'Pump seal and impeller inspection',cats:['Water Pump']},
+      {task:'Tyre wear inspection and rotation if needed',cats:['Vehicle / Ute']},
+      {task:'Review and action all open fault log items',cats:['Tractor','Header / Harvester','Feed Equipment','Spray Equipment','Water Pump','Vehicle / Ute','Generator','Trailer','Other']},
+      {task:'Update asset hours and service records',cats:['Tractor','Header / Harvester','Feed Equipment','Generator']},
+    ]
+  };
+
+  function renderChecklist(period){
+    const wrap=document.getElementById('checklist-content');
+    if(!assets.length){wrap.innerHTML='<div class="empty-state">Add assets to generate checklists.</div>';return;}
+    const relevantTasks=[];
+    checklistTasks[period].forEach(t=>{assets.filter(a=>t.cats.includes(a.cat)).forEach(a=>{relevantTasks.push({task:t.task,assetLabel:a.id,cat:a.cat});});});
+    if(!relevantTasks.length){wrap.innerHTML='<div class="empty-state">No checklist items match your registered assets.</div>';return;}
+    const dateStr=today.toLocaleDateString('en-AU',{day:'numeric',month:'long',year:'numeric'}).toUpperCase();
+    const total=relevantTasks.length;
+    const done=relevantTasks.filter((_,i)=>checkStates[period+'_'+i]).length;
+    const pct=total?Math.round((done/total)*100):0;
+    wrap.innerHTML=`<div class="card">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;">
+        <div style="font-size:11px;font-weight:700;letter-spacing:0.8px;">${period.toUpperCase()} Checklist — ${dateStr}</div>
+        <div style="display:flex;gap:8px;align-items:center;">
+          <span style="font-size:10px;color:#888;">${done}/${total} Complete</span>
+          <button class="btn btn-sm" onclick="resetChecklist('${period}')">Reset</button>
+        </div>
+      </div>
+      <div class="progress-bar" style="margin-bottom:16px;">
+        <div class="progress-fill" style="width:${pct}%;background:${pct===100?'#1D9E75':pct>50?'#8a5200':'#9b2020'};"></div>
+      </div>
+      ${relevantTasks.map((t,i)=>{
+        const checked=!!checkStates[period+'_'+i];
+        return`<div class="checklist-item">
+          <div class="checklist-check ${checked?'checked':''}" onclick="toggleCheck('${period}',${i})">${checked?'✓':''}</div>
+          <div>
+            <div class="checklist-text" style="${checked?'text-decoration:line-through;color:#aaa;':''}">${t.task}</div>
+            <div class="checklist-asset">${t.assetLabel} · ${t.cat}</div>
+          </div>
+        </div>`;
+      }).join('')}
+    </div>`;
+  }
+
+  function toggleCheck(period,i){checkStates[period+'_'+i]=!checkStates[period+'_'+i];renderChecklist(period);}
+  function resetChecklist(period){
+    if(!confirm('Reset all items on the '+period+' checklist?'))return;
+    Object.keys(checkStates).filter(k=>k.startsWith(period+'_')).forEach(k=>delete checkStates[k]);
+    renderChecklist(period);
+  }
+
+  renderAll();
+</script>
+</body>
+</html>
