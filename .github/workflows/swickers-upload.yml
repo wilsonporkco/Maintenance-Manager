@@ -1,0 +1,34 @@
+name: Swickers Kill Data Upload
+
+on:
+  schedule:
+    # 9:15pm Brisbane (AEST = UTC+10), runs daily
+    - cron: '15 11 * * *'
+  workflow_dispatch:
+    # Allows manual trigger from the GitHub Actions tab
+
+jobs:
+  upload:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Install Playwright browser
+        run: npx playwright install chromium --with-deps
+
+      - name: Run upload
+        env:
+          SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
+        run: node swickers-upload.js
