@@ -2,8 +2,8 @@ name: Swickers Kill Data Upload
 
 on:
   schedule:
-    # 9:15pm Brisbane (AEST = UTC+10), runs daily
-    - cron: '15 11 * * *'
+    # 6:00pm Brisbane (AEST = UTC+10), runs daily
+    - cron: '0 8 * * *'
   workflow_dispatch:
     # Allows manual trigger from the GitHub Actions tab
 
