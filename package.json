@@ -1,0 +1,10 @@
+{
+  "name": "swickers-auto-upload",
+  "version": "1.0.0",
+  "description": "Auto-download Swickers kill data and upload to Supabase",
+  "main": "swickers-upload.js",
+  "dependencies": {
+    "@supabase/supabase-js": "^2.39.0",
+    "playwright": "^1.43.0"
+  }
+}
