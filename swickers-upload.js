@@ -354,7 +354,8 @@ async function sendKillEmail(records, upload) {
 
     // 8. Build upload
     const uploadId = `auto-${today}-${Date.now()}`;
-    const records  = rows.map(r => {
+    // Parse all rows
+    const parsed = rows.map(r => {
       const hscw      = parseNum(r.hscw);
       const p2        = parseNum(r.p2fat || r.p2 || '0');
       const sex       = (r.sex || '').toLowerCase().startsWith('f') ? 'f' : 'm';
@@ -362,13 +363,49 @@ async function sendKillEmail(records, upload) {
       const organDesc = (r.organdesc || r.organ || '').trim();
       const condemned = organDesc.length > 0 && organDesc !== '0';
       return {
-        id: `${uploadId}-${r.bodyno || Math.random().toString(36).slice(2)}`,
         uploadId, date: normaliseDate(r.killdate || r.date || ''),
         hscw, p2, sex, tattoo, condemned,
         condemnDesc: condemned ? organDesc : '',
-        bodyno: r.bodyno || '',
+        bodyno: r.bodyno ? r.bodyno.trim() : '',
       };
     });
+
+    // Filter: must have hscw or p2 (matches frontend logic)
+    const validRows = parsed.filter(r => r.hscw > 0 || r.p2 > 0);
+
+    // Deduplicate by bodyno + hscw + tattoo (all three must match to be a duplicate)
+    const seen = new Map();
+    const deduped = [];
+    let duplicateCount = 0;
+    validRows.forEach(r => {
+      if (r.bodyno) {
+        if (!seen.has(r.bodyno)) {
+          const hscwMap = new Map();
+          hscwMap.set(r.hscw, new Set([r.tattoo]));
+          seen.set(r.bodyno, hscwMap);
+          deduped.push(r);
+        } else {
+          const hscwMap = seen.get(r.bodyno);
+          if (!hscwMap.has(r.hscw)) {
+            hscwMap.set(r.hscw, new Set([r.tattoo]));
+            deduped.push(r);
+          } else {
+            const tattooSet = hscwMap.get(r.hscw);
+            if (!tattooSet.has(r.tattoo)) {
+              tattooSet.add(r.tattoo);
+              deduped.push(r);
+            } else {
+              duplicateCount++;
+            }
+          }
+        }
+      } else {
+        deduped.push(r);
+      }
+    });
+    if (duplicateCount > 0) log(`Removed ${duplicateCount} duplicate records`);
+
+    const records = deduped.map((r, i) => ({ ...r, id: `${uploadId}-${i}` }));
 
     const hscwVals = records.filter(r => r.hscw > 0).map(r => r.hscw);
     const p2Vals   = records.filter(r => r.p2 > 0).map(r => r.p2);
