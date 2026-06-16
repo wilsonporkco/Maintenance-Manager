@@ -245,7 +245,7 @@ function processRecords(rows, uploadId) {
       business_code:  'WPC',
       user_email:     'auto@wilsonporkco.com.au',
       upload_date:    new Date().toISOString(),
-      data_type:      'kill',
+      data_type:      'daily',
       filename:       filename,
       date_from:      today,
       date_to:        today,
