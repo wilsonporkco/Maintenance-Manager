@@ -5,7 +5,8 @@
 // parses it, and uploads to Supabase.
 // ============================================================
 
-require('dotenv').config({ path: __dirname + '/.env' });
+// Load .env if present (local dev only — GitHub Actions uses repo secrets)
+try { require('dotenv').config({ path: __dirname + '/.env' }); } catch(e) {}
 const { chromium } = require('playwright');
 const { createClient } = require('@supabase/supabase-js');
 const fs = require('fs');
