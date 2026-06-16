@@ -267,7 +267,88 @@ function processRecords(rows, uploadId) {
 
     log(`✓ Upload complete: ${records.length} records for ${today} (avg HSCW ${avgHscw.toFixed(1)}, avg P2 ${avgP2.toFixed(1)}, ${condemns} condemns)`);
 
-    // 7. Clean up downloaded file
+    // 7. Send email notification
+    try {
+      const condemnRate = records.length ? (condemns / records.length * 100).toFixed(1) : '0.0';
+      const dateLabel   = new Date(today + 'T00:00:00').toLocaleDateString('en-AU', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+
+      // Build per-tattoo breakdown
+      const KNOWN_TATS = ['4FTM', '4FPC', '4FBK', '4GDH'];
+      const tatMap = {};
+      for (const r of records) {
+        const t = r.tattoo || 'UNKNOWN';
+        if (!tatMap[t]) tatMap[t] = { total: 0, f: 0, m: 0, hscw: [], p2: [] };
+        tatMap[t].total++;
+        if (r.sex === 'f') tatMap[t].f++; else tatMap[t].m++;
+        if (r.hscw > 0) tatMap[t].hscw.push(r.hscw);
+        if (r.p2  > 0) tatMap[t].p2.push(r.p2);
+      }
+      const avg = arr => arr.length ? (arr.reduce((a, b) => a + b, 0) / arr.length).toFixed(1) : '—';
+
+      const tattooRows = KNOWN_TATS.filter(t => tatMap[t]).map(t => {
+        const d = tatMap[t];
+        return `<tr><td style="padding:6px 12px;font-size:11px;font-weight:700;color:#1a1a1a;">${t}</td>
+          <td style="padding:6px 12px;font-size:11px;color:#555;">${d.total} pigs &nbsp; F ${d.f} / M ${d.m}</td>
+          <td style="padding:6px 12px;font-size:11px;color:#555;">HSCW ${avg(d.hscw)} kg &nbsp;·&nbsp; P2 ${avg(d.p2)} mm</td></tr>`;
+      }).join('');
+
+      const html = `<!DOCTYPE html><html><head><meta charset="utf-8"></head>
+<body style="margin:0;padding:0;background:#f5f4f0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;">
+<div style="max-width:600px;margin:32px auto;background:#fff;border-radius:12px;overflow:hidden;box-shadow:0 2px 12px rgba(0,0,0,0.08);">
+  <div style="background:#F78DC5;padding:24px 28px;">
+    <div style="font-size:11px;font-weight:700;letter-spacing:1px;color:rgba(255,255,255,0.8);margin-bottom:4px;">WILSON PORK CO</div>
+    <div style="font-size:22px;font-weight:700;color:#fff;">Kill Data Report</div>
+    <div style="font-size:13px;color:rgba(255,255,255,0.85);margin-top:4px;">${dateLabel}</div>
+  </div>
+  <table width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;border-bottom:1px solid #f0ede6;">
+    <tr>
+      <td width="25%" valign="top" style="padding:16px;text-align:center;border-right:1px solid #f0ede6;">
+        <div style="font-size:10px;font-weight:700;letter-spacing:0.8px;color:#aaa;margin-bottom:8px;">TOTAL HEAD</div>
+        <div style="font-size:28px;font-weight:700;color:#1a1a1a;line-height:1;">${records.length}</div>
+      </td>
+      <td width="25%" valign="top" style="padding:16px;text-align:center;border-right:1px solid #f0ede6;">
+        <div style="font-size:10px;font-weight:700;letter-spacing:0.8px;color:#aaa;margin-bottom:8px;">AVG HSCW</div>
+        <div style="font-size:28px;font-weight:700;color:#1a1a1a;line-height:1;">${avgHscw.toFixed(1)}</div>
+        <div style="font-size:11px;color:#aaa;margin-top:4px;">kg</div>
+      </td>
+      <td width="25%" valign="top" style="padding:16px;text-align:center;border-right:1px solid #f0ede6;">
+        <div style="font-size:10px;font-weight:700;letter-spacing:0.8px;color:#aaa;margin-bottom:8px;">AVG P2</div>
+        <div style="font-size:28px;font-weight:700;color:#1a1a1a;line-height:1;">${avgP2.toFixed(1)}</div>
+        <div style="font-size:11px;color:#aaa;margin-top:4px;">mm</div>
+      </td>
+      <td width="25%" valign="top" style="padding:16px;text-align:center;">
+        <div style="font-size:10px;font-weight:700;letter-spacing:0.8px;color:#aaa;margin-bottom:8px;">CONDEMN RATE</div>
+        <div style="font-size:28px;font-weight:700;color:${Number(condemnRate)>2?'#c62828':'#1a1a1a'};line-height:1;">${condemnRate}%</div>
+        <div style="font-size:11px;color:#aaa;margin-top:4px;">${condemns} head</div>
+      </td>
+    </tr>
+  </table>
+  ${tattooRows ? `<div style="padding:16px 24px 8px;">
+    <div style="font-size:10px;font-weight:700;letter-spacing:0.8px;color:#aaa;margin-bottom:8px;">BREAKDOWN BY TATTOO</div>
+    <table width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;">${tattooRows}</table>
+  </div>` : ''}
+  <div style="padding:16px 24px;border-top:1px solid #f0ede6;margin-top:12px;">
+    <div style="font-size:10px;color:#bbb;">Auto-uploaded · ${new Date().toLocaleString('en-AU', { timeZone: 'Australia/Brisbane' })}</div>
+  </div>
+</div></body></html>`;
+
+      await fetch('https://api.smtp2go.com/v3/email/send', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          api_key: 'api-4B549E0D303940548B3D5A7823EA5E6E',
+          to: ['nathan@wilsonporkco.com.au', 'unitone@wilsonporkco.com.au', 'unittwo@wilsonporkco.com.au', 'zack@wilpakmeats.com.au'],
+          sender: 'Wilson Pork Co <admin@wilsonporkco.com.au>',
+          subject: `Kill Data Summary — ${dateLabel}`,
+          html_body: html,
+        }),
+      });
+      log('✓ Email notification sent');
+    } catch(e) {
+      log('WARN: Email notification failed: ' + e.message);
+    }
+
+    // 8. Clean up downloaded file
     fs.unlinkSync(savePath);
 
   } catch (err) {
