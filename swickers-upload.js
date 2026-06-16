@@ -208,7 +208,7 @@ function processRecords(rows, uploadId) {
     log('Found download button — downloading file...');
     const [ download ] = await Promise.all([
       page.waitForEvent('download', { timeout: 300000 }),
-      downloadBtn.click(),
+      downloadBtn.click({ noWaitAfter: true }),
     ]);
 
     const filename   = download.suggestedFilename();
