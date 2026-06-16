@@ -189,7 +189,11 @@ function processRecords(rows, uploadId) {
       await page.waitForTimeout(2000);
     }
 
-    log('On dashboard — looking for today\'s download button...');
+    log('On dashboard — URL: ' + page.url());
+    log('On dashboard — Title: ' + await page.title());
+
+    // Wait a bit more for the table to render
+    await page.waitForTimeout(3000);
 
     // Find today's row — format on page is like "16-Jun-2026"
     // Use hard-coded month names to avoid locale differences between macOS and Linux
@@ -199,8 +203,14 @@ function processRecords(rows, uploadId) {
 
     log(`Looking for row: ${todayFormatted}`);
 
-    // Get all download buttons and find the one for today
+    // Log all image buttons and row text for debugging
     const buttons = await page.$$('input[type=image]');
+    log(`Found ${buttons.length} image buttons on page`);
+
+    // Also log all table row text to see what's visible
+    const allRows = await page.$$eval('tr', rows => rows.map(r => r.innerText.trim().replace(/\s+/g,' ')).filter(t => t.length > 0));
+    log('Table rows: ' + JSON.stringify(allRows.slice(0, 10)));
+
     let downloadBtn = null;
 
     for (const btn of buttons) {
