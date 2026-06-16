@@ -155,42 +155,37 @@ function processRecords(rows, uploadId) {
   const page    = await context.newPage();
 
   try {
-    // Navigate to dashboard (may redirect to login)
-    log('Navigating to Swickers...');
-    await page.goto(SWICKERS_URL, { waitUntil: 'domcontentloaded', timeout: 60000 });
+    // Always log in first — going straight to dashboard returns 401
+    log('Navigating to login page...');
+    await page.goto(LOGIN_URL, { waitUntil: 'domcontentloaded', timeout: 60000 });
     await page.waitForTimeout(2000);
+    log('Login page — Title: ' + await page.title());
 
-    // Check if redirected to login
-    if (page.url().includes('login') || page.url().includes('default.aspx')) {
-      log('Not logged in — logging in...');
-      await page.goto(LOGIN_URL, { waitUntil: 'domcontentloaded', timeout: 60000 });
-      await page.waitForTimeout(2000);
+    const userField = await page.$('input[type=text], input[name*=user], input[id*=user], input[name*=login], input[name*=User]');
+    const passField = await page.$('input[type=password]');
 
-      // Fill login form (field names may vary — adjust selectors if needed)
-      const userField = await page.$('input[type=text], input[name*=user], input[id*=user], input[name*=login]');
-      const passField = await page.$('input[type=password]');
-
-      if (!userField || !passField) {
-        log('ERROR: Could not find login fields on page');
-        await browser.close();
-        process.exit(1);
-      }
-
-      await userField.fill(config.username);
-      await passField.fill(config.password);
-      await Promise.all([
-        page.waitForNavigation({ waitUntil: 'domcontentloaded', timeout: 60000 }),
-        passField.press('Enter'),
-      ]);
-      await page.waitForTimeout(2000);
-
-      // Navigate to dashboard after login
-      await page.goto(SWICKERS_URL, { waitUntil: 'domcontentloaded', timeout: 60000 });
-      await page.waitForTimeout(2000);
+    if (!userField || !passField) {
+      log('ERROR: Could not find login fields on page');
+      await browser.close();
+      process.exit(1);
     }
 
-    log('On dashboard — URL: ' + page.url());
-    log('On dashboard — Title: ' + await page.title());
+    log('Filling login form...');
+    await userField.fill(config.username);
+    await passField.fill(config.password);
+    await Promise.all([
+      page.waitForNavigation({ waitUntil: 'domcontentloaded', timeout: 60000 }),
+      passField.press('Enter'),
+    ]);
+    await page.waitForTimeout(2000);
+    log('After login — URL: ' + page.url());
+
+    // Navigate to dashboard
+    log('Navigating to dashboard...');
+    await page.goto(SWICKERS_URL, { waitUntil: 'domcontentloaded', timeout: 60000 });
+    await page.waitForTimeout(3000);
+    log('Dashboard — URL: ' + page.url());
+    log('Dashboard — Title: ' + await page.title());
 
     // Wait a bit more for the table to render
     await page.waitForTimeout(3000);
