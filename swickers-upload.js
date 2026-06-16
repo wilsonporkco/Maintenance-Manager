@@ -150,41 +150,16 @@ function processRecords(rows, uploadId) {
   log('Launching browser...');
   if (!fs.existsSync(DOWNLOAD_DIR)) fs.mkdirSync(DOWNLOAD_DIR, { recursive: true });
 
+  // Pass credentials as HTTP Basic Auth — Swickers dashboard uses 401/Basic Auth, not a form login
   const browser = await chromium.launch({ headless: true });
-  const context = await browser.newContext({ acceptDownloads: true });
-  const page    = await context.newPage();
+  const context = await browser.newContext({
+    acceptDownloads: true,
+    httpCredentials: { username: config.username, password: config.password },
+  });
+  const page = await context.newPage();
 
   try {
-    // Always log in first — going straight to dashboard returns 401
-    log('Navigating to login page...');
-    await page.goto(LOGIN_URL, { waitUntil: 'domcontentloaded', timeout: 60000 });
-    await page.waitForTimeout(2000);
-    log('Login page — Title: ' + await page.title());
-
-    // Debug: log all inputs on the page
-    const allInputs = await page.$$eval('input', inputs => inputs.map(i => ({ type: i.type, name: i.name, id: i.id, placeholder: i.placeholder })));
-    log('Inputs on page: ' + JSON.stringify(allInputs));
-
-    const userField = await page.$('input[type=text], input[type=email], input[name*=ser], input[id*=ser], input[name*=ogin], input[id*=ogin]');
-    const passField = await page.$('input[type=password]');
-
-    if (!userField || !passField) {
-      log('ERROR: Could not find login fields on page');
-      await browser.close();
-      process.exit(1);
-    }
-
-    log('Filling login form...');
-    await userField.fill(config.username);
-    await passField.fill(config.password);
-    await Promise.all([
-      page.waitForNavigation({ waitUntil: 'domcontentloaded', timeout: 60000 }),
-      passField.press('Enter'),
-    ]);
-    await page.waitForTimeout(2000);
-    log('After login — URL: ' + page.url());
-
-    // Navigate to dashboard
+    // Navigate directly to dashboard with credentials in context
     log('Navigating to dashboard...');
     await page.goto(SWICKERS_URL, { waitUntil: 'domcontentloaded', timeout: 60000 });
     await page.waitForTimeout(3000);
