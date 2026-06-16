@@ -161,7 +161,11 @@ function processRecords(rows, uploadId) {
     await page.waitForTimeout(2000);
     log('Login page — Title: ' + await page.title());
 
-    const userField = await page.$('input[type=text], input[name*=user], input[id*=user], input[name*=login], input[name*=User]');
+    // Debug: log all inputs on the page
+    const allInputs = await page.$$eval('input', inputs => inputs.map(i => ({ type: i.type, name: i.name, id: i.id, placeholder: i.placeholder })));
+    log('Inputs on page: ' + JSON.stringify(allInputs));
+
+    const userField = await page.$('input[type=text], input[type=email], input[name*=ser], input[id*=ser], input[name*=ogin], input[id*=ogin]');
     const passField = await page.$('input[type=password]');
 
     if (!userField || !passField) {
