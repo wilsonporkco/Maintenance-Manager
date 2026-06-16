@@ -270,26 +270,116 @@ function processRecords(rows, uploadId) {
     // 7. Send email notification
     try {
       const condemnRate = records.length ? (condemns / records.length * 100).toFixed(1) : '0.0';
-      const dateLabel   = new Date(today + 'T00:00:00').toLocaleDateString('en-AU', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+      const fmtD = d => { const m = d && d.match(/^(\d{4})-(\d{2})-(\d{2})$/); return m ? `${m[3]}/${m[2]}/${m[1].slice(2)}` : d || ''; };
+      const dateLabel = fmtD(today);
+      const subjectDate = new Date(today + 'T00:00:00').toLocaleDateString('en-AU', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+      const uploadedAt = new Date().toLocaleString('en-AU', { timeZone: 'Australia/Brisbane', day: 'numeric', month: 'short', year: 'numeric', hour: 'numeric', minute: '2-digit', hour12: true });
 
-      // Build per-tattoo breakdown
-      const KNOWN_TATS = ['4FTM', '4FPC', '4FBK', '4GDH'];
-      const tatMap = {};
-      for (const r of records) {
-        const t = r.tattoo || 'UNKNOWN';
-        if (!tatMap[t]) tatMap[t] = { total: 0, f: 0, m: 0, hscw: [], p2: [] };
-        tatMap[t].total++;
-        if (r.sex === 'f') tatMap[t].f++; else tatMap[t].m++;
-        if (r.hscw > 0) tatMap[t].hscw.push(r.hscw);
-        if (r.p2  > 0) tatMap[t].p2.push(r.p2);
-      }
+      // Build per-tattoo breakdown with HSCW and P2 brackets
+      const tattooMap = {};
+      records.forEach(r => {
+        const t = (r.tattoo || 'UNKNOWN').toUpperCase();
+        if (!tattooMap[t]) tattooMap[t] = {
+          total: 0, f: 0, m: 0, hscw: [], p2: [],
+          hscwB: [{lbl:'< 80 kg',f:0,m:0},{lbl:'80 – 95 kg',f:0,m:0},{lbl:'95 – 100 kg',f:0,m:0},{lbl:'100 – 115 kg',f:0,m:0},{lbl:'115 kg +',f:0,m:0}],
+          p2B:   [{lbl:'0 – 12 mm',f:0,m:0},{lbl:'13 – 15 mm',f:0,m:0},{lbl:'16 mm +',f:0,m:0}],
+        };
+        tattooMap[t].total++;
+        const isFem = r.sex === 'f';
+        const hv = parseFloat(r.hscw) || 0;
+        const pv = parseFloat(r.p2)   || 0;
+        if (isFem) tattooMap[t].f++; else tattooMap[t].m++;
+        if (hv > 0) {
+          tattooMap[t].hscw.push(hv);
+          const hb = tattooMap[t].hscwB;
+          const hBkt = hv < 80 ? 0 : hv < 95 ? 1 : hv < 100 ? 2 : hv < 115 ? 3 : 4;
+          if (isFem) hb[hBkt].f++; else hb[hBkt].m++;
+        }
+        if (pv > 0) {
+          tattooMap[t].p2.push(pv);
+          const pb = tattooMap[t].p2B;
+          const pBkt = pv <= 12 ? 0 : pv <= 15 ? 1 : 2;
+          if (isFem) pb[pBkt].f++; else pb[pBkt].m++;
+        }
+      });
+
       const avg = arr => arr.length ? (arr.reduce((a, b) => a + b, 0) / arr.length).toFixed(1) : '—';
+      const tattooOrder = ['4FTM', '4FPC', '4FBK', '4GDH'];
+      const sortedTats = Object.keys(tattooMap).sort((a, b) => {
+        const ai = tattooOrder.indexOf(a) >= 0 ? tattooOrder.indexOf(a) : 999;
+        const bi = tattooOrder.indexOf(b) >= 0 ? tattooOrder.indexOf(b) : 999;
+        return ai !== bi ? ai - bi : a.localeCompare(b);
+      });
 
-      const tattooRows = KNOWN_TATS.filter(t => tatMap[t]).map(t => {
-        const d = tatMap[t];
-        return `<tr><td style="padding:6px 12px;font-size:11px;font-weight:700;color:#1a1a1a;">${t}</td>
-          <td style="padding:6px 12px;font-size:11px;color:#555;">${d.total} pigs &nbsp; F ${d.f} / M ${d.m}</td>
-          <td style="padding:6px 12px;font-size:11px;color:#555;">HSCW ${avg(d.hscw)} kg &nbsp;·&nbsp; P2 ${avg(d.p2)} mm</td></tr>`;
+      const fmHdr = (title) => `<tr>
+        <td style="padding:5px 8px;font-size:9px;font-weight:700;color:#aaa;letter-spacing:0.5px;border-bottom:1px solid #e0ddd6;">${title}</td>
+        <td style="padding:5px 6px;font-size:9px;font-weight:700;color:#F01A8C;text-align:center;border-bottom:1px solid #e0ddd6;">F</td>
+        <td style="padding:5px 6px;font-size:9px;font-weight:700;color:#2979FF;text-align:center;border-bottom:1px solid #e0ddd6;">M</td>
+        <td style="padding:5px 6px;font-size:9px;font-weight:700;color:#555;text-align:center;border-bottom:1px solid #e0ddd6;">TOT</td>
+        <td style="padding:5px 6px;font-size:9px;font-weight:700;color:#aaa;text-align:center;border-bottom:1px solid #e0ddd6;">%</td>
+      </tr>`;
+      const bRow = (lbl, f, m, tot) => `<tr>
+        <td style="padding:4px 8px;font-size:11px;color:#555;border-bottom:1px solid #f5f2ec;">${lbl}</td>
+        <td style="padding:4px 6px;font-size:11px;font-weight:700;color:#F01A8C;text-align:center;border-bottom:1px solid #f5f2ec;">${f}</td>
+        <td style="padding:4px 6px;font-size:11px;font-weight:700;color:#2979FF;text-align:center;border-bottom:1px solid #f5f2ec;">${m}</td>
+        <td style="padding:4px 6px;font-size:11px;font-weight:700;color:#1a1a1a;text-align:center;border-bottom:1px solid #f5f2ec;">${f + m}</td>
+        <td style="padding:4px 6px;font-size:10px;color:#aaa;text-align:center;border-bottom:1px solid #f5f2ec;">${tot > 0 ? Math.round((f + m) / tot * 100) : 0}</td>
+      </tr>`;
+      const twoColTable = (leftTitle, leftRows, rightTitle, rightRows) => `
+        <table width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;">
+          <tr>
+            <td width="50%" valign="top" style="padding:10px 12px;border-right:1px solid #ece9e2;">
+              <table width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;">${fmHdr(leftTitle)}${leftRows}</table>
+            </td>
+            <td width="50%" valign="top" style="padding:10px 12px;">
+              <table width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;">${fmHdr(rightTitle)}${rightRows}</table>
+            </td>
+          </tr>
+        </table>`;
+
+      // ALL PIGS combined brackets
+      const allHscwB = [{lbl:'< 80 kg',f:0,m:0},{lbl:'80 – 95 kg',f:0,m:0},{lbl:'95 – 100 kg',f:0,m:0},{lbl:'100 – 115 kg',f:0,m:0},{lbl:'115 kg +',f:0,m:0}];
+      const allP2B   = [{lbl:'0 – 12 mm',f:0,m:0},{lbl:'13 – 15 mm',f:0,m:0},{lbl:'16 mm +',f:0,m:0}];
+      sortedTats.forEach(t => {
+        const d = tattooMap[t];
+        d.hscwB.forEach((b, i) => { allHscwB[i].f += b.f; allHscwB[i].m += b.m; });
+        d.p2B.forEach((b, i) => { allP2B[i].f += b.f; allP2B[i].m += b.m; });
+      });
+      const total = records.length;
+      const femCount = records.filter(r => r.sex === 'f').length;
+
+      const allPigsCard = `
+        <div style="border:1px solid #1D9E75;border-radius:8px;overflow:hidden;margin-bottom:16px;">
+          <table width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;background:#f0faf6;border-bottom:1px solid #b2dfdb;">
+            <tr>
+              <td style="padding:9px 12px;">
+                <span style="font-size:13px;font-weight:700;color:#1D9E75;">ALL PIGS</span>
+                <span style="font-size:11px;color:#555;margin-left:8px;">${total} PIGS &nbsp;·</span>
+                <span style="font-size:11px;font-weight:700;color:#F01A8C;margin-left:6px;">F ${femCount}</span>
+                <span style="font-size:11px;font-weight:700;color:#2979FF;margin-left:6px;">M ${total - femCount}</span>
+              </td>
+              <td style="padding:9px 12px;font-size:10px;color:#aaa;text-align:right;">Avg HSCW ${avgHscw.toFixed(1)} kg &nbsp;·&nbsp; Avg P2 ${avgP2.toFixed(1)} mm</td>
+            </tr>
+          </table>
+          ${twoColTable('WEIGHT (HSCW)', allHscwB.map(b => bRow(b.lbl, b.f, b.m, total)).join(''), 'FAT DEPTH (P2)', allP2B.map(b => bRow(b.lbl, b.f, b.m, total)).join(''))}
+        </div>`;
+
+      const tattooCardsHtml = sortedTats.map(t => {
+        const d = tattooMap[t];
+        return `<div style="border:1px solid #ece9e2;border-radius:8px;overflow:hidden;margin-bottom:12px;">
+          <table width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;background:#fdf0f5;border-bottom:1px solid #ece9e2;">
+            <tr>
+              <td style="padding:9px 12px;">
+                <span style="font-size:13px;font-weight:700;color:#F01A8C;">${t}</span>
+                <span style="font-size:11px;color:#555;margin-left:8px;">${d.total} PIGS &nbsp;·</span>
+                <span style="font-size:11px;font-weight:700;color:#F01A8C;margin-left:6px;">F ${d.f}</span>
+                <span style="font-size:11px;font-weight:700;color:#2979FF;margin-left:6px;">M ${d.m}</span>
+              </td>
+              <td style="padding:9px 12px;font-size:10px;color:#aaa;text-align:right;">Avg HSCW ${avg(d.hscw)} kg &nbsp;·&nbsp; Avg P2 ${avg(d.p2)} mm</td>
+            </tr>
+          </table>
+          ${twoColTable('WEIGHT (HSCW)', d.hscwB.map(b => bRow(b.lbl, b.f, b.m, d.total)).join(''), 'FAT DEPTH (P2)', d.p2B.map(b => bRow(b.lbl, b.f, b.m, d.total)).join(''))}
+        </div>`;
       }).join('');
 
       const html = `<!DOCTYPE html><html><head><meta charset="utf-8"></head>
@@ -304,7 +394,8 @@ function processRecords(rows, uploadId) {
     <tr>
       <td width="25%" valign="top" style="padding:16px;text-align:center;border-right:1px solid #f0ede6;">
         <div style="font-size:10px;font-weight:700;letter-spacing:0.8px;color:#aaa;margin-bottom:8px;">TOTAL HEAD</div>
-        <div style="font-size:28px;font-weight:700;color:#1a1a1a;line-height:1;">${records.length}</div>
+        <div style="font-size:28px;font-weight:700;color:#1a1a1a;line-height:1;">${total}</div>
+        <div style="font-size:11px;color:transparent;">–</div>
       </td>
       <td width="25%" valign="top" style="padding:16px;text-align:center;border-right:1px solid #f0ede6;">
         <div style="font-size:10px;font-weight:700;letter-spacing:0.8px;color:#aaa;margin-bottom:8px;">AVG HSCW</div>
@@ -318,17 +409,18 @@ function processRecords(rows, uploadId) {
       </td>
       <td width="25%" valign="top" style="padding:16px;text-align:center;">
         <div style="font-size:10px;font-weight:700;letter-spacing:0.8px;color:#aaa;margin-bottom:8px;">CONDEMN RATE</div>
-        <div style="font-size:28px;font-weight:700;color:${Number(condemnRate)>2?'#c62828':'#1a1a1a'};line-height:1;">${condemnRate}%</div>
+        <div style="font-size:28px;font-weight:700;color:${Number(condemnRate) > 2 ? '#c62828' : '#1a1a1a'};line-height:1;">${condemnRate}%</div>
         <div style="font-size:11px;color:#aaa;margin-top:4px;">${condemns} head</div>
       </td>
     </tr>
   </table>
-  ${tattooRows ? `<div style="padding:16px 24px 8px;">
-    <div style="font-size:10px;font-weight:700;letter-spacing:0.8px;color:#aaa;margin-bottom:8px;">BREAKDOWN BY TATTOO</div>
-    <table width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;">${tattooRows}</table>
+  ${sortedTats.length ? `<div style="padding:20px 24px 8px;">
+    ${allPigsCard}
+    <div style="font-size:10px;font-weight:700;letter-spacing:0.8px;color:#aaa;margin-bottom:12px;">BREAKDOWN BY TATTOO</div>
+    ${tattooCardsHtml}
   </div>` : ''}
   <div style="padding:16px 24px;border-top:1px solid #f0ede6;margin-top:12px;">
-    <div style="font-size:10px;color:#bbb;">Auto-uploaded · ${new Date().toLocaleString('en-AU', { timeZone: 'Australia/Brisbane' })}</div>
+    <div style="font-size:10px;color:#bbb;">Auto-uploaded · ${uploadedAt}</div>
   </div>
 </div></body></html>`;
 
@@ -339,7 +431,7 @@ function processRecords(rows, uploadId) {
           api_key: 'api-4B549E0D303940548B3D5A7823EA5E6E',
           to: ['nathan@wilsonporkco.com.au', 'unitone@wilsonporkco.com.au', 'unittwo@wilsonporkco.com.au', 'zack@wilpakmeats.com.au'],
           sender: 'Wilson Pork Co <admin@wilsonporkco.com.au>',
-          subject: `Kill Data Summary — ${dateLabel}`,
+          subject: `Kill Data Summary — ${subjectDate}`,
           html_body: html,
         }),
       });
