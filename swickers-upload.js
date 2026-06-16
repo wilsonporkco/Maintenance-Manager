@@ -191,10 +191,11 @@ function processRecords(rows, uploadId) {
 
     log('On dashboard — looking for today\'s download button...');
 
-    // Find today's row — format on page is like "15-Jun-2026"
-    const todayFormatted = new Date(today + 'T00:00:00').toLocaleDateString('en-AU', {
-      day: '2-digit', month: 'short', year: 'numeric', timeZone: 'Australia/Brisbane'
-    }).replace(/ /g, '-'); // "15-Jun-2026"
+    // Find today's row — format on page is like "16-Jun-2026"
+    // Use hard-coded month names to avoid locale differences between macOS and Linux
+    const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+    const _d = new Date(today + 'T00:00:00');
+    const todayFormatted = String(_d.getDate()).padStart(2,'0') + '-' + MONTHS[_d.getMonth()] + '-' + _d.getFullYear();
 
     log(`Looking for row: ${todayFormatted}`);
 
