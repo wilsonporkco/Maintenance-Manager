@@ -428,7 +428,7 @@ function processRecords(rows, uploadId) {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          api_key: 'api-4B549E0D303940548B3D5A7823EA5E6E',
+          api_key: 'api-3AE7EF4C464041A891C91001BF84CC8D',
           to: ['nathan@wilsonporkco.com.au', 'unitone@wilsonporkco.com.au', 'unittwo@wilsonporkco.com.au', 'zack@wilpakmeats.com.au'],
           sender: 'Wilson Pork Co <admin@wilsonporkco.com.au>',
           subject: `Kill Data Summary — ${subjectDate}`,
