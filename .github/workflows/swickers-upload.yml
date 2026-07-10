@@ -27,4 +27,5 @@ jobs:
       - name: Run upload
         env:
           SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
+          SMTP2GO_API_KEY: ${{ secrets.SMTP2GO_API_KEY }}
         run: node swickers-upload.js
