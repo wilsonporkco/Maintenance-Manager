@@ -243,7 +243,7 @@ function processRecords(rows, uploadId) {
         const t = (r.tattoo || 'UNKNOWN').toUpperCase();
         if (!tattooMap[t]) tattooMap[t] = {
           total: 0, f: 0, m: 0, hscw: [], p2: [],
-          hscwB: [{lbl:'< 80 kg',f:0,m:0},{lbl:'80 – 95 kg',f:0,m:0},{lbl:'95 – 100 kg',f:0,m:0},{lbl:'100 – 115 kg',f:0,m:0},{lbl:'115 kg +',f:0,m:0}],
+          hscwB: [{lbl:'< 75 kg',f:0,m:0},{lbl:'75 – 80 kg',f:0,m:0},{lbl:'80 – 95 kg',f:0,m:0},{lbl:'95 – 100 kg',f:0,m:0},{lbl:'100 – 115 kg',f:0,m:0},{lbl:'115 kg +',f:0,m:0}],
           p2B:   [{lbl:'0 – 12 mm',f:0,m:0},{lbl:'13 – 15 mm',f:0,m:0},{lbl:'16 mm +',f:0,m:0}],
         };
         tattooMap[t].total++;
@@ -254,7 +254,7 @@ function processRecords(rows, uploadId) {
         if (hv > 0) {
           tattooMap[t].hscw.push(hv);
           const hb = tattooMap[t].hscwB;
-          const hBkt = hv < 80 ? 0 : hv < 95 ? 1 : hv < 100 ? 2 : hv < 115 ? 3 : 4;
+          const hBkt = hv < 75 ? 0 : hv < 80 ? 1 : hv < 95 ? 2 : hv < 100 ? 3 : hv < 115 ? 4 : 5;
           if (isFem) hb[hBkt].f++; else hb[hBkt].m++;
         }
         if (pv > 0) {
@@ -297,7 +297,7 @@ function processRecords(rows, uploadId) {
           </tr>
         </table>`;
       // ALL PIGS combined brackets
-      const allHscwB = [{lbl:'< 80 kg',f:0,m:0},{lbl:'80 – 95 kg',f:0,m:0},{lbl:'95 – 100 kg',f:0,m:0},{lbl:'100 – 115 kg',f:0,m:0},{lbl:'115 kg +',f:0,m:0}];
+      const allHscwB = [{lbl:'< 75 kg',f:0,m:0},{lbl:'75 – 80 kg',f:0,m:0},{lbl:'80 – 95 kg',f:0,m:0},{lbl:'95 – 100 kg',f:0,m:0},{lbl:'100 – 115 kg',f:0,m:0},{lbl:'115 kg +',f:0,m:0}];
       const allP2B   = [{lbl:'0 – 12 mm',f:0,m:0},{lbl:'13 – 15 mm',f:0,m:0},{lbl:'16 mm +',f:0,m:0}];
       sortedTats.forEach(t => {
         const d = tattooMap[t];
