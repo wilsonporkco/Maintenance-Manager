@@ -266,21 +266,20 @@ async function sendKillEmail(records, upload) {
   }
   log(`Credentials loaded for: ${cfg.username}`);
 
-  // 2. Skip if already uploaded today
+  // 2. Check if already uploaded today — store existing record count for comparison later
   const today = todayStr();
   const { data: existing, error: checkErr } = await supabase
-    .from('uploads').select('id').eq('date_from', today).limit(1);
+    .from('uploads').select('id, total_records').eq('date_from', today).limit(1);
   if (checkErr) {
-    log(`ERROR: Could not verify duplicate check — aborting to avoid re-send: ${checkErr.message}`);
+    log(`ERROR: Could not verify duplicate check — aborting: ${checkErr.message}`);
     process.exit(1);
   }
-  if (existing && existing.length > 0) {
-    log(`Already uploaded for ${today} — skipping`);
-    process.exit(0);
+  const existingUpload = existing && existing.length > 0 ? existing[0] : null;
+  if (existingUpload) {
+    log(`Existing upload for ${today}: ${existingUpload.total_records} records — will override if Swickers has more`);
   }
 
   // 3. Launch browser with NTLM credentials
-  // Chromium handles NTLM auth natively when httpCredentials is set
   if (!fs.existsSync(DOWNLOAD_DIR)) fs.mkdirSync(DOWNLOAD_DIR, { recursive: true });
 
   log('Launching browser...');
@@ -338,9 +337,6 @@ async function sendKillEmail(records, upload) {
     }
 
     // 6. Click and download
-    // noWaitAfter: true — prevents Playwright waiting for navigation after the click.
-    // The download button does an ASP.NET form POST that returns a file (no page navigation),
-    // so without this flag Playwright hangs for 120s waiting for a navigation that never comes.
     log('Downloading file...');
     const [download] = await Promise.all([
       page.waitForEvent('download', { timeout: 60000 }),
@@ -361,7 +357,6 @@ async function sendKillEmail(records, upload) {
 
     // 8. Build upload
     const uploadId = `auto-${today}-${Date.now()}`;
-    // Parse all rows
     const parsed = rows.map(r => {
       const hscw      = parseNum(r.hscw);
       const p2        = parseNum(r.p2fat || r.p2 || '0');
@@ -378,10 +373,8 @@ async function sendKillEmail(records, upload) {
       };
     });
 
-    // Filter: must have hscw or p2 (matches frontend logic)
     const validRows = parsed.filter(r => r.hscw > 0 || r.p2 > 0);
 
-    // Deduplicate by bodyno + hscw + tattoo (all three must match to be a duplicate)
     const seen = new Map();
     const deduped = [];
     let duplicateCount = 0;
@@ -415,6 +408,20 @@ async function sendKillEmail(records, upload) {
 
     const records = deduped.map((r, i) => ({ ...r, id: `${uploadId}-${i}` }));
 
+    // 9. Skip only if record count is same or lower than existing upload
+    if (existingUpload) {
+      if (records.length <= existingUpload.total_records) {
+        log(`Swickers has ${records.length} records, already have ${existingUpload.total_records} — no new data, skipping`);
+        fs.unlinkSync(savePath);
+        process.exit(0);
+      }
+      // More records available — delete old upload and replace with fresh data
+      log(`Swickers has ${records.length} records vs existing ${existingUpload.total_records} — overriding with updated data`);
+      const { error: delErr } = await supabase.from('uploads').delete().eq('id', existingUpload.id);
+      if (delErr) { log('ERROR deleting old upload: ' + delErr.message); process.exit(1); }
+      log('Old upload deleted');
+    }
+
     const hscwVals = records.filter(r => r.hscw > 0).map(r => r.hscw);
     const p2Vals   = records.filter(r => r.p2 > 0).map(r => r.p2);
     const avgHscw  = hscwVals.length ? hscwVals.reduce((a,b)=>a+b,0)/hscwVals.length : 0;
@@ -430,7 +437,7 @@ async function sendKillEmail(records, upload) {
       total_condemns: condemns, records,
     };
 
-    // 9. Insert
+    // 10. Insert
     log('Uploading to Supabase...');
     const { error: insertErr } = await supabase.from('uploads').insert(upload);
     if (insertErr) { log('ERROR: ' + insertErr.message); process.exit(1); }
@@ -438,7 +445,7 @@ async function sendKillEmail(records, upload) {
     log(`✓ Done: ${records.length} records, avg HSCW ${avgHscw.toFixed(1)}, avg P2 ${avgP2.toFixed(1)}, ${condemns} condemns`);
     fs.unlinkSync(savePath);
 
-    // 10. Send email
+    // 11. Send email
     await sendKillEmail(records, upload);
 
   } catch (err) {
