@@ -286,6 +286,7 @@ async function sendKillEmail(records, upload) {
   const browser = await chromium.launch({ headless: true });
   const context = await browser.newContext({
     acceptDownloads: true,
+    ignoreHTTPSErrors: true,   // swickers.com.au SSL cert expired — bypass until they renew
     httpCredentials: {
       username: cfg.username,
       password: cfg.password,
