@@ -1,6 +1,11 @@
 name: Swickers Kill Data Upload
 
 on:
+  schedule:
+    # 6:00pm Brisbane (AEST = UTC+10)
+    - cron: '0 8 * * *'
+    # 7:00pm Brisbane — retry run if 6pm failed or data wasn't ready yet
+    - cron: '0 9 * * *'
   workflow_dispatch:
     # Allows manual trigger from the GitHub Actions tab
 
@@ -24,8 +29,38 @@ jobs:
       - name: Install Playwright browser
         run: npx playwright install chromium --with-deps
 
-      - name: Run upload
+      - name: Run upload (attempt 1)
+        id: attempt1
+        continue-on-error: true
         env:
           SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
           SMTP2GO_API_KEY: ${{ secrets.SMTP2GO_API_KEY }}
         run: node swickers-upload.js
+
+      - name: Wait 60s before retry
+        if: steps.attempt1.outcome == 'failure'
+        run: sleep 60
+
+      - name: Run upload (attempt 2)
+        id: attempt2
+        if: steps.attempt1.outcome == 'failure'
+        continue-on-error: true
+        env:
+          SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
+          SMTP2GO_API_KEY: ${{ secrets.SMTP2GO_API_KEY }}
+        run: node swickers-upload.js
+
+      - name: Send failure alert email
+        if: steps.attempt1.outcome == 'failure' && steps.attempt2.outcome == 'failure'
+        env:
+          SMTP2GO_API_KEY: ${{ secrets.SMTP2GO_API_KEY }}
+        run: |
+          curl -s -X POST https://api.smtp2go.com/v3/email/send \
+            -H "Content-Type: application/json" \
+            -d '{
+              "api_key": "'"$SMTP2GO_API_KEY"'",
+              "to": ["nathan@wilsonporkco.com.au"],
+              "sender": "Wilson Pork Co <admin@wilsonporkco.com.au>",
+              "subject": "⚠ SWICKERS UPLOAD FAILED — Manual action required",
+              "html_body": "<div style=\"font-family:-apple-system,BlinkMacSystemFont,sans-serif;max-width:520px;margin:0 auto;border-radius:12px;overflow:hidden;border:1px solid #e0ddd6;\"><div style=\"background:#F78DC5;padding:20px 24px;\"><div style=\"font-size:11px;font-weight:600;letter-spacing:1px;color:rgba(255,255,255,0.8);margin-bottom:4px;\">WILSON PORK CO</div><div style=\"font-size:20px;font-weight:700;color:#fff;text-transform:uppercase;\">SWICKERS UPLOAD FAILED</div></div><div style=\"padding:24px;background:#fff;\"><div style=\"background:#FCEBEB;border:1px solid #F09595;border-radius:8px;padding:14px 16px;margin-bottom:20px;\"><div style=\"font-size:13px;font-weight:700;color:#A32D2D;margin-bottom:4px;\">Both upload attempts failed</div><div style=\"font-size:13px;color:#791F1F;line-height:1.5;\">The Swickers kill data auto-upload failed twice and needs manual attention.</div></div><div style=\"margin-bottom:20px;\"><div style=\"font-size:11px;font-weight:700;color:#888;letter-spacing:0.5px;text-transform:uppercase;margin-bottom:10px;\">What to do</div><div style=\"font-size:13px;color:#1a1a1a;margin-bottom:8px;\">1. Check the <a href=\\\"https://github.com/wilsonporkco/Maintenance-Manager/actions\\\" style=\\\"color:#185FA5;\\\">GitHub Actions logs</a> for the error details</div><div style=\"font-size:13px;color:#1a1a1a;\">2. Upload the kill data manually from the Wilson Pork Co dashboard</div></div><a href=\"https://github.com/wilsonporkco/Maintenance-Manager/actions\" style=\"display:block;text-align:center;background:#1a1a1a;color:#fff;text-decoration:none;padding:10px 20px;border-radius:8px;font-size:13px;font-weight:700;\">VIEW LOGS ON GITHUB</a></div><div style=\"padding:12px 24px;border-top:1px solid #e0ddd6;background:#fff;\"><div style=\"font-size:11px;color:#aaa;\">Automated alert &middot; Wilson Pork Co &middot; GitHub Actions</div></div></div>"
+            }'
