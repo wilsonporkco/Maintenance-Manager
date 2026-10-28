@@ -20,6 +20,7 @@ function log(msg) {
 }
 
 function todayStr() {
+  if (process.env.DATE_OVERRIDE) return process.env.DATE_OVERRIDE;
   return new Date().toLocaleDateString('en-CA', { timeZone: 'Australia/Brisbane' });
 }
 
