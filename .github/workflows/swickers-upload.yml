@@ -7,7 +7,11 @@ on:
     # 7:00pm Brisbane — retry run if 6pm failed or data wasn't ready yet
     - cron: '0 9 * * *'
   workflow_dispatch:
-    # Allows manual trigger from the GitHub Actions tab
+    inputs:
+      date_override:
+        description: 'Date to upload (YYYY-MM-DD). Leave blank for today.'
+        required: false
+        default: ''
 
 jobs:
   upload:
@@ -35,6 +39,7 @@ jobs:
         env:
           SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
           SMTP2GO_API_KEY: ${{ secrets.SMTP2GO_API_KEY }}
+          DATE_OVERRIDE: ${{ github.event.inputs.date_override }}
         run: node swickers-upload.js
 
       - name: Wait 60s before retry
@@ -48,6 +53,7 @@ jobs:
         env:
           SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
           SMTP2GO_API_KEY: ${{ secrets.SMTP2GO_API_KEY }}
+          DATE_OVERRIDE: ${{ github.event.inputs.date_override }}
         run: node swickers-upload.js
 
       - name: Send failure alert email
